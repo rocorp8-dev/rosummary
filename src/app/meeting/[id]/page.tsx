@@ -42,7 +42,7 @@ export default async function MeetingDetailPage({ params }: Props) {
     <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-20 glass border-b border-white/5">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-4">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
           <Link
             href="/dashboard"
             className="p-2 rounded-xl hover:bg-white/5 text-white/50 hover:text-white transition"
@@ -57,8 +57,8 @@ export default async function MeetingDetailPage({ params }: Props) {
       </header>
 
       {/* Main */}
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-        {/* Meta bar */}
+      <main className="max-w-6xl mx-auto px-4 py-6 space-y-4">
+        {/* Meta bar — full width */}
         <div className="glass rounded-2xl px-5 py-4">
           <div className="flex flex-wrap gap-4 text-sm text-white/50">
             <span className="flex items-center gap-1.5">
@@ -86,17 +86,20 @@ export default async function MeetingDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Summary */}
-        <SummaryPanel summary={m.summary} status={m.status} />
+        {/* Two-column grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          {/* ── Columna izquierda: Resumen + Tareas + Chat ── */}
+          <div className="space-y-4">
+            <SummaryPanel summary={m.summary} status={m.status} />
+            <ActionItems meetingId={m.id} initialItems={m.action_items || []} />
+            <MeetingChat meetingId={m.id} initialMessages={msgs} transcript={m.transcript} />
+          </div>
 
-        {/* Action items */}
-        <ActionItems meetingId={m.id} initialItems={m.action_items || []} />
-
-        {/* AI Chat */}
-        <MeetingChat meetingId={m.id} initialMessages={msgs} transcript={m.transcript} />
-
-        {/* Transcript */}
-        <TranscriptView transcript={m.transcript} />
+          {/* ── Columna derecha: Transcripción ── */}
+          <div className="lg:sticky lg:top-24">
+            <TranscriptView transcript={m.transcript} />
+          </div>
+        </div>
       </main>
     </div>
   )

@@ -12,6 +12,13 @@ interface Props {
   transcript: string | null
 }
 
+const SUGGESTED = [
+  '¿Cuáles fueron las decisiones principales?',
+  '¿Qué seguimiento necesita esta reunión?',
+  '¿Quiénes participaron?',
+  '¿Cuáles son los próximos pasos?',
+]
+
 export default function MeetingChat({ meetingId, initialMessages, transcript }: Props) {
   const [messages, setMessages] = useState<MeetingMessage[]>(initialMessages)
   const [input, setInput] = useState('')
@@ -23,15 +30,14 @@ export default function MeetingChat({ meetingId, initialMessages, transcript }: 
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || loading) return
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || loading) return
 
     const userMsg: MeetingMessage = {
       id: Date.now().toString(),
       meeting_id: meetingId,
       role: 'user',
-      content: input.trim(),
+      content: text.trim(),
       created_at: new Date().toISOString(),
     }
 
@@ -40,14 +46,12 @@ export default function MeetingChat({ meetingId, initialMessages, transcript }: 
     setLoading(true)
 
     try {
-      // Save user message
       await supabase.from('meeting_messages').insert({
         meeting_id: meetingId,
         role: 'user',
         content: userMsg.content,
       })
 
-      // Get AI response
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -72,7 +76,6 @@ export default function MeetingChat({ meetingId, initialMessages, transcript }: 
 
       setMessages((prev) => [...prev, assistantMsg])
 
-      // Save assistant message
       await supabase.from('meeting_messages').insert({
         meeting_id: meetingId,
         role: 'assistant',
@@ -94,41 +97,44 @@ export default function MeetingChat({ meetingId, initialMessages, transcript }: 
     }
   }
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    sendMessage(input)
+  }
+
   if (!transcript) return null
 
-  const suggestedQuestions = [
-    '¿Cuáles fueron las decisiones principales?',
-    '¿Qué seguimiento necesita esta reunión?',
-    '¿Quiénes participaron?',
-  ]
-
   return (
-    <div className="glass rounded-2xl overflow-hidden">
+    <div className="glass rounded-2xl overflow-hidden flex flex-col">
       {/* Header */}
       <div className="px-5 py-4 border-b border-white/5 flex items-center gap-2">
         <MessageCircle className="w-4 h-4 text-cyan-400" />
         <h3 className="font-semibold text-white text-sm">Habla con tu reunión</h3>
       </div>
 
+      {/* Suggested questions — siempre visibles */}
+      <div className="px-4 pt-3 pb-2 border-b border-white/5">
+        <p className="text-white/30 text-xs mb-2">Preguntas rápidas</p>
+        <div className="flex flex-wrap gap-1.5">
+          {SUGGESTED.map((q) => (
+            <button
+              key={q}
+              onClick={() => sendMessage(q)}
+              disabled={loading}
+              className="text-xs bg-white/5 hover:bg-cyan-500/15 text-white/55 hover:text-cyan-300 rounded-lg px-3 py-1.5 transition border border-white/10 hover:border-cyan-500/30 disabled:opacity-40"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Messages */}
-      <div className="px-4 py-4 space-y-3 max-h-80 overflow-y-auto">
+      <div className="px-4 py-4 space-y-3 max-h-72 overflow-y-auto">
         {messages.length === 0 && (
-          <div className="text-center py-4">
-            <Bot className="w-8 h-8 text-white/20 mx-auto mb-2" />
-            <p className="text-white/40 text-sm mb-4">
-              Pregúntame sobre la reunión
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {suggestedQuestions.map((q) => (
-                <button
-                  key={q}
-                  onClick={() => setInput(q)}
-                  className="text-xs bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/90 rounded-lg px-3 py-1.5 transition border border-white/10"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
+          <div className="text-center py-6">
+            <Bot className="w-8 h-8 text-white/15 mx-auto mb-2" />
+            <p className="text-white/30 text-sm">Usa una pregunta rápida o escribe la tuya</p>
           </div>
         )}
 
@@ -140,7 +146,6 @@ export default function MeetingChat({ meetingId, initialMessages, transcript }: 
               animate={{ opacity: 1, y: 0 }}
               className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
             >
-              {/* Avatar */}
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
                   msg.role === 'user' ? 'bg-indigo-600/30' : 'bg-cyan-500/20'
@@ -152,8 +157,6 @@ export default function MeetingChat({ meetingId, initialMessages, transcript }: 
                   <Bot className="w-3.5 h-3.5 text-cyan-400" />
                 )}
               </div>
-
-              {/* Bubble */}
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                   msg.role === 'user'
@@ -168,11 +171,7 @@ export default function MeetingChat({ meetingId, initialMessages, transcript }: 
         </AnimatePresence>
 
         {loading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex gap-2"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
             <div className="w-7 h-7 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
               <Bot className="w-3.5 h-3.5 text-cyan-400" />
             </div>
@@ -186,12 +185,12 @@ export default function MeetingChat({ meetingId, initialMessages, transcript }: 
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-white/5">
-        <form onSubmit={sendMessage} className="flex gap-2">
+        <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Pregunta sobre la reunión…"
+            placeholder="Escribe tu pregunta…"
             className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-cyan-500/50 transition"
           />
           <button

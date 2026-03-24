@@ -49,6 +49,14 @@ export default function LoginPage() {
         <div className="text-center">
           <h1 className="text-3xl font-bold gradient-text">RoSummary</h1>
           <p className="text-white/50 text-sm mt-1">Reuniones que trabajan por ti</p>
+          <a
+            href="https://despacho9.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/25 hover:text-indigo-400 text-xs mt-1 transition"
+          >
+            by despacho9.vercel.app
+          </a>
         </div>
       </motion.div>
 
