@@ -3,8 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
-import { Mail, Lock, ArrowRight, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react'
-import Image from 'next/image'
+import { Mail, Lock, ArrowRight, Loader2, CheckCircle, Eye, EyeOff, Mic } from 'lucide-react'
 
 // Google icon inline SVG
 function GoogleIcon() {
@@ -103,28 +102,34 @@ export default function LoginPage() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8 flex flex-col items-center gap-4"
+        className="mb-8 flex flex-col items-center gap-5"
       >
-        {/* Hero mic image */}
-        <div className="relative w-36 h-44">
-          <Image
-            src="/rodicta-hero.jpeg"
-            alt="RoDicta"
-            fill
-            className="object-contain drop-shadow-2xl"
-            priority
-          />
+        {/* Ícono con glow */}
+        <div className="relative">
+          {/* Glow orb detrás */}
+          <div className="absolute inset-0 rounded-3xl blur-2xl scale-150"
+            style={{ background: 'radial-gradient(circle, rgba(0,200,220,0.35) 0%, transparent 70%)' }} />
+          <div className="relative w-20 h-20 rounded-3xl flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(145deg, #1a1048 0%, #0d0a28 100%)',
+              boxShadow: '0 0 0 1px rgba(0,200,220,0.3), 0 8px 32px rgba(0,200,220,0.25)',
+            }}>
+            <Mic className="w-10 h-10 text-cyan-400" />
+          </div>
         </div>
-        {/* Text logo */}
+
+        {/* Nombre de marca en CSS — sin imágenes */}
         <div className="text-center">
-          <Image
-            src="/rodicta-logo.png"
-            alt="RoDicta — IA que nunca olvida"
-            width={220}
-            height={60}
-            className="mx-auto"
-            priority
-          />
+          <h1 className="font-black tracking-tight leading-none"
+            style={{ fontSize: '2.6rem' }}>
+            <span className="text-white">Ro</span>
+            <span style={{ color: '#1a1048', WebkitTextStroke: '1.5px #00c8dc' }}>D</span>
+            <span className="text-white">icta</span>
+          </h1>
+          <p className="font-semibold mt-1.5 tracking-wide"
+            style={{ color: '#00c8dc', fontSize: '0.9rem' }}>
+            IA que nunca olvida
+          </p>
           <a
             href="https://despacho9.vercel.app"
             target="_blank"

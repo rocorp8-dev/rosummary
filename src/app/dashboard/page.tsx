@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import MeetingCard from '@/features/meetings/components/MeetingCard'
 import StatsBar from '@/features/meetings/components/StatsBar'
 import { Meeting } from '@/types'
-import { Plus, LogOut } from 'lucide-react'
+import { Plus, LogOut, Mic } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -26,15 +26,16 @@ export default async function DashboardPage() {
       {/* Header */}
       <header className="sticky top-0 z-20 glass border-b border-white/5">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/rodicta-logo.png"
-              alt="RoDicta"
-              width={130}
-              height={36}
-              className="object-contain"
-              priority
-            />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{ background: 'linear-gradient(145deg,#1a1048,#0d0a28)', boxShadow: '0 0 0 1px rgba(0,200,220,0.3)' }}>
+              <Mic className="w-4 h-4 text-cyan-400" />
+            </div>
+            <span className="font-black tracking-tight text-xl leading-none">
+              <span className="text-white">Ro</span>
+              <span style={{ color: '#00c8dc' }}>D</span>
+              <span className="text-white">icta</span>
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block text-white/40 text-sm">{user.email}</span>
