@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation'
 import MeetingCard from '@/features/meetings/components/MeetingCard'
 import StatsBar from '@/features/meetings/components/StatsBar'
 import { Meeting } from '@/types'
-import { Mic, Plus, LogOut } from 'lucide-react'
+import { Plus, LogOut } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -26,10 +27,14 @@ export default async function DashboardPage() {
       <header className="sticky top-0 z-20 glass border-b border-white/5">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-              <Mic className="w-4 h-4 text-indigo-400" />
-            </div>
-            <span className="font-bold text-white text-lg">RoSummary</span>
+            <Image
+              src="/rodicta-logo.png"
+              alt="RoDicta"
+              width={130}
+              height={36}
+              className="object-contain"
+              priority
+            />
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block text-white/40 text-sm">{user.email}</span>
@@ -87,10 +92,10 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-20 gap-5">
       <div
-        className="w-24 h-24 rounded-3xl glass flex items-center justify-center"
-        style={{ boxShadow: '0 0 60px rgba(99,102,241,0.2)' }}
+        className="relative w-28 h-36"
+        style={{ filter: 'drop-shadow(0 0 30px rgba(0,200,220,0.35))' }}
       >
-        <Mic className="w-12 h-12 text-indigo-400" />
+        <Image src="/rodicta-hero.jpeg" alt="RoDicta" fill className="object-contain" />
       </div>
       <div className="text-center">
         <h3 className="text-xl font-semibold text-white">Sin reuniones aún</h3>
@@ -100,9 +105,8 @@ function EmptyState() {
       </div>
       <Link
         href="/meeting/new"
-        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-xl transition"
+        className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-6 py-3 rounded-xl transition"
       >
-        <Mic className="w-4 h-4" />
         Grabar primera reunión
       </Link>
     </div>

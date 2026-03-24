@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
-import { Mic, Mail, Lock, ArrowRight, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react'
+import Image from 'next/image'
 
 // Google icon inline SVG
 function GoogleIcon() {
@@ -102,19 +103,33 @@ export default function LoginPage() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-10 flex flex-col items-center gap-3"
+        className="mb-8 flex flex-col items-center gap-4"
       >
-        <div className="w-16 h-16 rounded-2xl glass glow flex items-center justify-center">
-          <Mic className="w-8 h-8 text-indigo-400" />
+        {/* Hero mic image */}
+        <div className="relative w-36 h-44">
+          <Image
+            src="/rodicta-hero.jpeg"
+            alt="RoDicta"
+            fill
+            className="object-contain drop-shadow-2xl"
+            priority
+          />
         </div>
+        {/* Text logo */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold gradient-text">RoSummary</h1>
-          <p className="text-white/50 text-sm mt-1">Reuniones que trabajan por ti</p>
+          <Image
+            src="/rodicta-logo.png"
+            alt="RoDicta — IA que nunca olvida"
+            width={220}
+            height={60}
+            className="mx-auto"
+            priority
+          />
           <a
             href="https://despacho9.vercel.app"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-white/25 hover:text-indigo-400 text-xs mt-1 transition block"
+            className="text-white/25 hover:text-cyan-400 text-xs mt-2 transition block"
           >
             by despacho9.vercel.app
           </a>

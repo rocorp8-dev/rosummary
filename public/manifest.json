@@ -1,11 +1,11 @@
 {
-  "name": "RoSummary",
-  "short_name": "RoSummary",
-  "description": "Reuniones inteligentes con IA",
+  "name": "RoDicta",
+  "short_name": "RoDicta",
+  "description": "IA que nunca olvida",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#07071a",
-  "theme_color": "#07071a",
+  "background_color": "#060615",
+  "theme_color": "#060615",
   "orientation": "portrait",
   "icons": [
     {

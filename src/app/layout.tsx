@@ -3,13 +3,13 @@ import './globals.css'
 import ServiceWorkerRegister from './sw-register'
 
 export const metadata: Metadata = {
-  title: 'RoSummary — Reuniones Inteligentes',
+  title: 'RoDicta — IA que nunca olvida',
   description: 'Graba, transcribe y analiza tus reuniones con IA. Resúmenes automáticos, tareas pendientes y chat con tu reunión.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'RoSummary',
+    title: 'RoDicta',
   },
   icons: {
     apple: '/icons/apple-touch-icon.png',
@@ -21,7 +21,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#07071a',
+  themeColor: '#060615',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -35,12 +35,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className="min-h-screen antialiased">
-        {/* Background gradient */}
+        {/* Background gradient — brand navy + cyan glow */}
         <div
           className="fixed inset-0 -z-10"
           style={{
             background:
-              'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,102,241,0.15) 0%, transparent 60%), #07071a',
+              'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0,200,220,0.12) 0%, rgba(26,16,72,0.4) 40%, transparent 70%), #060615',
           }}
         />
         <ServiceWorkerRegister />
