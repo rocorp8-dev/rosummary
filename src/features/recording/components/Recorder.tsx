@@ -153,7 +153,13 @@ export default function Recorder() {
   const startRecording = useCallback(async () => {
     setErrorMsg('')
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,  // necesario para capturar voz del altavoz
+          noiseSuppression: false,  // sin filtro para no cortar voces externas
+          autoGainControl: true,
+        }
+      })
       streamRef.current = mediaStream
       setStream(mediaStream)
       mimeTypeRef.current = getSupportedMimeType()
