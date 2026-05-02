@@ -10,21 +10,90 @@ import { formatDuration } from '@/lib/utils'
 
 type RecordingState = 'idle' | 'recording' | 'processing' | 'done' | 'error'
 
+const SEGMENT_MS = 2 * 60 * 1000 // rotate every 2 minutes
+
+function getSupportedMimeType(): string {
+  if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus'
+  if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm'
+  return 'audio/mp4'
+}
+
 export default function Recorder() {
   const [state, setState] = useState<RecordingState>('idle')
   const [seconds, setSeconds] = useState(0)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [title, setTitle] = useState('')
-  const [meetingId, setMeetingId] = useState<string | null>(null)
+  const [statusMsg, setStatusMsg] = useState('')
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const router = useRouter()
+  const mediaRecorderRef  = useRef<MediaRecorder | null>(null)
+  const chunksRef         = useRef<Blob[]>([])
+  const streamRef         = useRef<MediaStream | null>(null)
+  const mimeTypeRef       = useRef<string>('')
+  const segmentPromises   = useRef<Promise<string>[]>([])
+  const rotateTimerRef    = useRef<NodeJS.Timeout | null>(null)
+  const timerRef          = useRef<NodeJS.Timeout | null>(null)
+  const wakeLockRef       = useRef<WakeLockSentinel | null>(null)
+  const audioCtxRef       = useRef<AudioContext | null>(null)
+  const noSleepSourceRef  = useRef<AudioBufferSourceNode | null>(null)
+
+  const router   = useRouter()
   const supabase = createClient()
 
-  // Timer
+  // ── Wake Lock: evita que la pantalla se apague (Chrome/Android/iOS 16.4+) ──
+  const requestWakeLock = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+      try {
+        wakeLockRef.current = await navigator.wakeLock.request('screen')
+      } catch { /* silencioso si no soportado */ }
+    }
+  }, [])
+
+  const releaseWakeLock = useCallback(() => {
+    wakeLockRef.current?.release().catch(() => {})
+    wakeLockRef.current = null
+  }, [])
+
+  // ── Silent AudioContext: mantiene iOS vivo cuando la pantalla se bloquea ──
+  const startNoSleep = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const ctx = new AudioCtx()
+      const buffer = ctx.createBuffer(1, 1, 22050)
+      const source = ctx.createBufferSource()
+      source.buffer = buffer
+      source.loop = true
+      source.connect(ctx.destination)
+      source.start(0)
+      audioCtxRef.current = ctx
+      noSleepSourceRef.current = source
+    } catch { /* silencioso */ }
+  }, [])
+
+  const stopNoSleep = useCallback(() => {
+    try { noSleepSourceRef.current?.stop() } catch {}
+    try { audioCtxRef.current?.close() } catch {}
+    noSleepSourceRef.current = null
+    audioCtxRef.current = null
+  }, [])
+
+  // ── Detectar si la grabación se interrumpió al volver a la app ──
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && state === 'recording') {
+        if (mediaRecorderRef.current?.state === 'inactive') {
+          stopNoSleep()
+          releaseWakeLock()
+          setErrorMsg('La grabación se interrumpió porque cerraste la app o la pantalla se apagó. Vuelve a intentarlo.')
+          setState('error')
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [state, stopNoSleep, releaseWakeLock])
+
+  // ── Timer ──
   useEffect(() => {
     if (state === 'recording') {
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000)
@@ -34,57 +103,110 @@ export default function Recorder() {
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [state])
 
+  // ── Transcribe a blob (no DB save — just returns text) ──
+  const transcribeBlob = useCallback(async (blob: Blob): Promise<string> => {
+    const ext = mimeTypeRef.current.includes('mp4') ? 'm4a' : 'webm'
+    const fd = new FormData()
+    fd.append('audio', blob, `seg.${ext}`)
+    const res = await fetch('/api/transcribe', { method: 'POST', body: fd })
+    if (!res.ok) return ''
+    const data = await res.json()
+    return data.transcript || ''
+  }, [])
+
+  // ── Create a new MediaRecorder on the existing stream ──
+  const startRecorder = useCallback((mediaStream: MediaStream) => {
+    const mimeType = mimeTypeRef.current
+    const recorder = new MediaRecorder(mediaStream, { mimeType })
+    chunksRef.current = []
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data)
+    }
+    recorder.start(1000)
+    mediaRecorderRef.current = recorder
+  }, [])
+
+  // ── Stop current recorder and get its blob ──
+  const stopRecorderAndGetBlob = useCallback((): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const recorder = mediaRecorderRef.current!
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current })
+        chunksRef.current = []
+        resolve(blob)
+      }
+      if (recorder.state !== 'inactive') recorder.stop()
+      else resolve(new Blob([], { type: mimeTypeRef.current }))
+    })
+  }, [])
+
+  // ── Rotate: stop segment, transcribe in background, start new segment ──
+  const rotateSegment = useCallback(async () => {
+    const blob = await stopRecorderAndGetBlob()
+    if (streamRef.current) startRecorder(streamRef.current)     // restart immediately
+    if (blob.size > 1000) {
+      segmentPromises.current.push(transcribeBlob(blob))
+    }
+  }, [stopRecorderAndGetBlob, startRecorder, transcribeBlob])
+
+  // ── START ──
   const startRecording = useCallback(async () => {
     setErrorMsg('')
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = mediaStream
       setStream(mediaStream)
+      mimeTypeRef.current = getSupportedMimeType()
+      segmentPromises.current = []
 
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm')
-        ? 'audio/webm'
-        : 'audio/mp4'
-
-      const recorder = new MediaRecorder(mediaStream, { mimeType })
-      mediaRecorderRef.current = recorder
-      chunksRef.current = []
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data)
-      }
-
-      recorder.start(1000) // collect every second
+      startRecorder(mediaStream)
       setState('recording')
       setSeconds(0)
-    } catch (err) {
+
+      // Mantener vivo en background (Wake Lock + silent audio para iOS)
+      await requestWakeLock()
+      startNoSleep()
+
+      // Rotate every 2 minutes
+      rotateTimerRef.current = setInterval(rotateSegment, SEGMENT_MS)
+    } catch {
       setErrorMsg('No se pudo acceder al micrófono. Ve a Configuración → Privacidad → Micrófono.')
       setState('error')
     }
-  }, [])
+  }, [startRecorder, rotateSegment, requestWakeLock, startNoSleep])
 
+  // ── STOP ──
   const stopRecording = useCallback(async () => {
-    if (!mediaRecorderRef.current) return
-    setState('processing')
+    // Stop rotation timer
+    if (rotateTimerRef.current) {
+      clearInterval(rotateTimerRef.current)
+      rotateTimerRef.current = null
+    }
 
-    mediaRecorderRef.current.stop()
-    stream?.getTracks().forEach((t) => t.stop())
+    setState('processing')
+    setStatusMsg('Finalizando grabación…')
+
+    // Liberar Wake Lock y silent audio
+    releaseWakeLock()
+    stopNoSleep()
+
+    // Stop final segment
+    const finalBlob = await stopRecorderAndGetBlob()
+    streamRef.current?.getTracks().forEach((t) => t.stop())
     setStream(null)
 
-    await new Promise<void>((resolve) => {
-      mediaRecorderRef.current!.onstop = () => resolve()
-    })
-
-    const mimeType = mediaRecorderRef.current.mimeType
-    const blob = new Blob(chunksRef.current, { type: mimeType })
+    if (finalBlob.size > 1000) {
+      segmentPromises.current.push(transcribeBlob(finalBlob))
+    }
 
     try {
-      // 1. Create meeting record
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No autenticado')
 
-      const meetingTitle = title.trim() || `Reunión ${new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' })}`
+      const meetingTitle = title.trim() ||
+        `Reunión ${new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' })}`
 
+      // Create meeting record
       const { data: meeting, error: meetingError } = await supabase
         .from('meetings')
         .insert({
@@ -97,48 +219,46 @@ export default function Recorder() {
         .single()
 
       if (meetingError) throw meetingError
-      setMeetingId(meeting.id)
 
-      // 2. Upload audio to Supabase Storage
-      const ext = mimeType.includes('mp4') ? 'm4a' : 'webm'
-      const filePath = `${user.id}/${meeting.id}.${ext}`
-
-      const { error: uploadError } = await supabase.storage
+      // Upload audio (last segment only for storage reference)
+      const ext = mimeTypeRef.current.includes('mp4') ? 'm4a' : 'webm'
+      await supabase.storage
         .from('meeting-audio')
-        .upload(filePath, blob, { contentType: mimeType })
+        .upload(`${user.id}/${meeting.id}.${ext}`, finalBlob, { contentType: mimeTypeRef.current })
 
-      if (uploadError) throw uploadError
+      // Wait for all segment transcriptions
+      setStatusMsg(`Transcribiendo ${segmentPromises.current.length} segmento(s)…`)
+      const transcripts = await Promise.all(segmentPromises.current)
+      const fullTranscript = transcripts.filter(Boolean).join(' ')
 
-      // 3. Transcribe via Groq
-      const formData = new FormData()
-      formData.append('audio', blob, `audio.${ext}`)
-      formData.append('meetingId', meeting.id)
+      // Save combined transcript
+      const participantsSet = new Set<string>()
+      const speakerMatches = fullTranscript.match(/([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+):/g)
+      if (speakerMatches) {
+        speakerMatches.forEach((s) => participantsSet.add(s.replace(':', '').trim()))
+      }
 
-      const transcribeRes = await fetch('/api/transcribe', {
-        method: 'POST',
-        body: formData,
-      })
+      await supabase
+        .from('meetings')
+        .update({ transcript: fullTranscript, participants: [...participantsSet].slice(0, 8), status: 'processing' })
+        .eq('id', meeting.id)
 
-      if (!transcribeRes.ok) throw new Error('Error en transcripción')
-      const { transcript } = await transcribeRes.json()
-
-      // 4. Summarize via Cerebras
+      // Summarize
+      setStatusMsg('Generando resumen con IA…')
       await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ meetingId: meeting.id, transcript }),
+        body: JSON.stringify({ meetingId: meeting.id, transcript: fullTranscript }),
       })
 
       setState('done')
-
-      // 5. Redirect to meeting detail
+      setStatusMsg('')
       setTimeout(() => router.push(`/meeting/${meeting.id}`), 1500)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error desconocido'
-      setErrorMsg(msg)
+      setErrorMsg(err instanceof Error ? err.message : 'Error desconocido')
       setState('error')
     }
-  }, [stream, seconds, title, supabase, router])
+  }, [stopRecorderAndGetBlob, transcribeBlob, seconds, title, supabase, router, releaseWakeLock, stopNoSleep])
 
   return (
     <div className="flex flex-col items-center gap-8 w-full max-w-sm mx-auto">
@@ -206,9 +326,7 @@ export default function Recorder() {
         )}
 
         {state === 'processing' && (
-          <div
-            className="w-28 h-28 rounded-full glass flex flex-col items-center justify-center gap-2"
-          >
+          <div className="w-28 h-28 rounded-full glass flex flex-col items-center justify-center gap-2">
             <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
             <span className="text-xs text-white/50">Procesando…</span>
           </div>
@@ -247,13 +365,13 @@ export default function Recorder() {
         {state === 'recording' && (
           <div>
             <p className="text-white font-semibold">Grabando…</p>
-            <p className="text-white/40 text-sm mt-1">Toca el botón para detener</p>
+            <p className="text-white/40 text-sm mt-1">Puedes bloquear la pantalla — sigue grabando</p>
           </div>
         )}
         {state === 'processing' && (
           <div>
             <p className="text-white font-semibold">Transcribiendo con IA</p>
-            <p className="text-white/40 text-sm mt-1">Groq Whisper + Cerebras AI</p>
+            <p className="text-white/40 text-sm mt-1">{statusMsg || 'Groq Whisper + Cerebras AI'}</p>
           </div>
         )}
         {state === 'done' && (
