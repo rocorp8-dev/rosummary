@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const maxDuration = 60
 
-const CEREBRAS_MODEL = 'llama3.1-70b'
+const CEREBRAS_MODEL = 'llama3.1-8b'
 
 export async function POST(req: NextRequest) {
   try {
