@@ -106,5 +106,9 @@ Para cargar una leccion, lee el skill correspondiente.
 | 84 | Groq Llama 3 deprecado/decommissioned — migrar a llama-3.1-8b-instant | llm-agents |
 | 85 | Permisos de accesibilidad macOS bloqueados para wrappers .app | frontend-ui |
 | 86 | Bucle infinito con rumps.Timer(0) en PyObjC/macOS | frontend-ui |
+| 87 | Refinamiento LLM forzado destruye fidelidad del dictado | frontend-ui |
+| 88 | Alucinación del modelo en resúmenes de código no leído | frontend-ui |
+| 89 | Truncado de transcripción sabotea resúmenes de reuniones largas | llm-agents |
+| 90 | whitespace-pre-line y botón retry para UX de IA robusta | frontend-ui |
 
-> Ultima actualizacion: 22 Mayo 2026 — Lecciones Dictado Handsfree v6.0, Groq Llama 3.1 y PyObjC | Ro SaaS Factory v5.5
+> Ultima actualizacion: 28 Mayo 2026 — Lecciones RoDicta v2.0 (Contexto 120k, whitespace pre-line y retry manual) | Ro SaaS Factory v6.0

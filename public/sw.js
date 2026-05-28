@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rosummary-v1'
+const CACHE_NAME = 'rodicta-v1'
 const STATIC_ASSETS = [
   '/',
   '/dashboard',
