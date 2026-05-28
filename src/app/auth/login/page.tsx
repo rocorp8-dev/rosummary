@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
-import { Mail, Lock, ArrowRight, Loader2, CheckCircle, Eye, EyeOff, Mic } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react'
+import Image from 'next/image'
 
 // Google icon inline SVG
 function GoogleIcon() {
@@ -30,7 +31,7 @@ export default function LoginPage() {
   const supabase = createClient()
 
   const siteUrl = typeof window !== 'undefined'
-    ? (process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)
+    ? window.location.origin
     : process.env.NEXT_PUBLIC_SITE_URL || ''
 
   // ── Google OAuth ──
@@ -104,17 +105,12 @@ export default function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8 flex flex-col items-center gap-5"
       >
-        {/* Ícono con glow */}
+        {/* Micrófono con glow */}
         <div className="relative">
-          {/* Glow orb detrás */}
-          <div className="absolute inset-0 rounded-3xl blur-2xl scale-150"
-            style={{ background: 'radial-gradient(circle, rgba(0,200,220,0.35) 0%, transparent 70%)' }} />
-          <div className="relative w-20 h-20 rounded-3xl flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(145deg, #1a1048 0%, #0d0a28 100%)',
-              boxShadow: '0 0 0 1px rgba(0,200,220,0.3), 0 8px 32px rgba(0,200,220,0.25)',
-            }}>
-            <Mic className="w-10 h-10 text-cyan-400" />
+          <div className="absolute inset-0 blur-2xl scale-150"
+            style={{ background: 'radial-gradient(circle, rgba(0,200,220,0.3) 0%, transparent 70%)' }} />
+          <div className="relative w-28 h-36">
+            <Image src="/rodicta-mic.png" alt="RoDicta" fill className="object-contain drop-shadow-2xl" />
           </div>
         </div>
 

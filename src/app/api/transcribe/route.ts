@@ -13,8 +13,8 @@ export async function POST(req: NextRequest) {
     const audio = formData.get('audio') as File | null
     const meetingId = formData.get('meetingId') as string | null
 
-    if (!audio || !meetingId) {
-      return NextResponse.json({ error: 'Audio and meetingId required' }, { status: 400 })
+    if (!audio) {
+      return NextResponse.json({ error: 'Audio required' }, { status: 400 })
     }
 
     const groqKey = process.env.GROQ_API_KEY
@@ -49,16 +49,18 @@ export async function POST(req: NextRequest) {
       participants.push(...unique.slice(0, 8))
     }
 
-    // Save transcript to meeting
-    await supabase
-      .from('meetings')
-      .update({
-        transcript,
-        participants,
-        status: 'processing', // summarize will set to 'ready'
-      })
-      .eq('id', meetingId)
-      .eq('user_id', user.id)
+    // Only save to DB if meetingId provided (not the case for background segments)
+    if (meetingId) {
+      await supabase
+        .from('meetings')
+        .update({
+          transcript,
+          participants,
+          status: 'processing',
+        })
+        .eq('id', meetingId)
+        .eq('user_id', user.id)
+    }
 
     return NextResponse.json({ transcript, participants })
   } catch (err) {

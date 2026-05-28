@@ -93,10 +93,10 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-20 gap-5">
       <div
-        className="relative w-28 h-36"
-        style={{ filter: 'drop-shadow(0 0 30px rgba(0,200,220,0.35))' }}
+        className="relative w-36 h-48"
+        style={{ filter: 'drop-shadow(0 0 30px rgba(0,200,220,0.4))' }}
       >
-        <Image src="/rodicta-hero.jpeg" alt="RoDicta" fill className="object-contain" />
+        <Image src="/rodicta-mic.png" alt="RoDicta" fill className="object-contain" />
       </div>
       <div className="text-center">
         <h3 className="text-xl font-semibold text-white">Sin reuniones aún</h3>
