@@ -27,14 +27,16 @@ export async function POST(req: NextRequest) {
     if (!groqKey) throw new Error('GROQ_API_KEY not configured')
 
     const prompt = `Eres un asistente experto en analizar reuniones de negocios.
-Analiza la siguiente transcripción y devuelve ÚNICAMENTE un objeto JSON válido (sin markdown, sin explicación) con esta estructura:
+Analiza detenidamente toda la transcripción y extrae con rigurosidad todos los temas discutidos, las decisiones clave y los puntos de acuerdo. No omitas información importante de ninguna parte de la reunión, especialmente de las partes media y final.
+
+Devuelve ÚNICAMENTE un objeto JSON válido (sin markdown, sin explicación) con esta estructura exacta:
 
 {
-  "summary": "Resumen ejecutivo de la reunión en 3-5 oraciones. Menciona el objetivo, puntos clave discutidos y conclusiones.",
+  "summary": "Un resumen ejecutivo muy completo, estructurado y detallado de la reunión. Describe el objetivo principal, desglosa con claridad todos los temas clave discutidos (con sus respectivos detalles, argumentos y conclusiones) y especifica los acuerdos alcanzados de forma organizada y fácil de leer. Puedes usar saltos de línea (\\n) para estructurarlo.",
   "action_items": [
     {
       "id": "1",
-      "text": "Descripción clara de la tarea",
+      "text": "Descripción clara, detallada y específica de la tarea acordada",
       "done": false,
       "assignee": "Nombre del responsable o null"
     }
@@ -42,8 +44,8 @@ Analiza la siguiente transcripción y devuelve ÚNICAMENTE un objeto JSON válid
   "title": "Título descriptivo de la reunión en máximo 8 palabras"
 }
 
-Transcripción:
-${transcript.substring(0, 4000)}`
+Transcripción de la reunión:
+${transcript.substring(0, 120000)}`
 
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',

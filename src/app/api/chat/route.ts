@@ -27,7 +27,7 @@ No inventes datos que no estén en la transcripción.
 
 TRANSCRIPCIÓN DE LA REUNIÓN:
 ---
-${transcript.substring(0, 3500)}
+${transcript.substring(0, 120000)}
 ---`
 
     const messages = [

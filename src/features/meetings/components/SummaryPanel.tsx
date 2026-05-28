@@ -115,7 +115,7 @@ export default function SummaryPanel({ summary, status, meetingId }: Props) {
         <Sparkles className="w-4 h-4 text-indigo-400" />
         <h3 className="font-semibold text-white text-sm">Resumen IA</h3>
       </div>
-      <p className="text-white/80 text-sm leading-relaxed">{summary}</p>
+      <p className="text-white/80 text-sm leading-relaxed whitespace-pre-line">{summary}</p>
     </div>
   )
 }
