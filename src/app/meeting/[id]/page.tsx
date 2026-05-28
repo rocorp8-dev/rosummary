@@ -90,7 +90,7 @@ export default async function MeetingDetailPage({ params }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           {/* ── Columna izquierda: Resumen + Tareas + Chat ── */}
           <div className="space-y-4">
-            <SummaryPanel summary={m.summary} status={m.status} />
+            <SummaryPanel summary={m.summary} status={m.status} meetingId={m.id} />
             <ActionItems meetingId={m.id} initialItems={m.action_items || []} />
             <MeetingChat meetingId={m.id} initialMessages={msgs} transcript={m.transcript} />
           </div>

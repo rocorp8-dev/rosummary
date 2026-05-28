@@ -5,23 +5,40 @@ export const maxDuration = 60
 
 const GROQ_MODEL = 'llama-3.1-8b-instant'
 
-export async function POST(req: NextRequest) {
-  // Leer el body una sola vez antes del try para poder usarlo en el catch
-  let meetingId: string | undefined
-  let transcript: string | undefined
+interface RouteParams {
+  params: Promise<{ id: string }>
+}
+
+export async function POST(req: NextRequest, { params }: RouteParams) {
+  const { id: meetingId } = await params
 
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await req.json()
-    meetingId = body.meetingId
-    transcript = body.transcript
+    // Obtener la reunión con su transcripción
+    const { data: meeting, error: meetingError } = await supabase
+      .from('meetings')
+      .select('id, transcript, status')
+      .eq('id', meetingId)
+      .eq('user_id', user.id)
+      .single()
 
-    if (!meetingId || !transcript) {
-      return NextResponse.json({ error: 'meetingId and transcript required' }, { status: 400 })
+    if (meetingError || !meeting) {
+      return NextResponse.json({ error: 'Reunión no encontrada' }, { status: 404 })
     }
+
+    if (!meeting.transcript) {
+      return NextResponse.json({ error: 'Esta reunión no tiene transcripción para resumir' }, { status: 400 })
+    }
+
+    // Marcar como processing mientras reintentamos
+    await supabase
+      .from('meetings')
+      .update({ status: 'processing' })
+      .eq('id', meetingId)
+      .eq('user_id', user.id)
 
     const groqKey = process.env.GROQ_API_KEY
     if (!groqKey) throw new Error('GROQ_API_KEY not configured')
@@ -43,7 +60,7 @@ Analiza la siguiente transcripción y devuelve ÚNICAMENTE un objeto JSON válid
 }
 
 Transcripción:
-${transcript.substring(0, 4000)}`
+${meeting.transcript.substring(0, 4000)}`
 
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -67,10 +84,9 @@ ${transcript.substring(0, 4000)}`
     const groqData = await groqRes.json()
     const rawContent: string = groqData.choices?.[0]?.message?.content || '{}'
 
-    // Limpiar posibles bloques de código markdown que Groq puede incluir
+    // Limpiar posibles bloques markdown
     const cleaned = rawContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
 
-    // Parse JSON safely
     let parsed: { summary?: string; action_items?: unknown[]; title?: string } = {}
     try {
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
@@ -83,7 +99,6 @@ ${transcript.substring(0, 4000)}`
     const actionItems = Array.isArray(parsed.action_items) ? parsed.action_items : []
     const title = parsed.title
 
-    // Update meeting
     const updatePayload: Record<string, unknown> = {
       summary,
       action_items: actionItems,
@@ -97,18 +112,19 @@ ${transcript.substring(0, 4000)}`
       .eq('id', meetingId)
       .eq('user_id', user.id)
 
-    return NextResponse.json({ summary, action_items: actionItems })
+    return NextResponse.json({ ok: true, summary, action_items: actionItems })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error'
-    console.error('[summarize]', msg)
+    console.error('[retry-summarize]', msg)
 
-    // Marcar la reunión como error usando meetingId ya leído (no re-parsear req)
-    if (meetingId) {
-      try {
-        const supabase = await createClient()
-        await supabase.from('meetings').update({ status: 'error' }).eq('id', meetingId)
-      } catch {}
-    }
+    // Marcar como error para que la UI no quede en processing infinito
+    try {
+      const supabase = await createClient()
+      await supabase
+        .from('meetings')
+        .update({ status: 'error' })
+        .eq('id', meetingId)
+    } catch {}
 
     return NextResponse.json({ error: msg }, { status: 500 })
   }
